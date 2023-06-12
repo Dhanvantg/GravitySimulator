@@ -48,6 +48,8 @@ scal = (menu[0], menu[1] + (menu[3] * 7) // 6, menu[2], menu[3] // 4)
 scaler = pygame.Rect(scal[0], scal[1], scal[2], scal[3])
 back = (menu[0] + menu[2] // 6, HEIGHT - drop[3] - HEIGHT // 32, (menu[2] * 2) // 3, HEIGHT // 16)
 backr = pygame.Rect(back[0], back[1], back[2], back[3])
+check = (menu[0] + menu[2] // 6, back[1] - drop[3] - HEIGHT // 32, (menu[2] * 2) // 3, HEIGHT // 16)
+checkr = pygame.Rect(check[0], check[1], check[2], check[3])
 
 slide = (menu[0] + menu[2] // 8, menu[1] + (menu[3] * 31) // 24, 6 * menu[2] // 8, menu[3] // 20)
 slidr = pygame.Rect(slide[0], slide[1], slide[2], slide[3])
@@ -60,6 +62,7 @@ min_slide = slider[0]
 
 rectlist = [[massr, 'mass'], [radiusr, 'radius'], [colourr, 'colour'], [velr, 'velocity'], [dropr, 'drop']]
 currentobj = {'mass': 'MASS', 'radius': 'RADIUS', 'colour': 'COLOUR', 'velocity': 'VELOCITY', 'drop': 'drop'}
+
 
 class Button():
     def __init__(self, image, pos, text_input, font, base_color, hovering_color):
@@ -155,8 +158,8 @@ class Planet:
                 x = x * self.SCALE + WIDTH / 2
                 y = y * self.SCALE + HEIGHT / 2
                 updated_points.append((x, y))
-
-            pygame.draw.lines(win, self.color, False, updated_points, 2)
+            if lines:
+                pygame.draw.lines(win, self.color, False, updated_points, 2)
 
         pygame.draw.circle(win, self.color, (x, y), self.radius)
 
@@ -269,7 +272,6 @@ def sim(mas='MASS', rad='RADIUS', col='COLOUR', vel='VELOCITY'):
     head = headfont.render('BACK', True, BLACK)
     WIN.blit(head, (back[0] + back[2] // 2 - head.get_width() // 2, back[1] + head.get_height() // 2))
 
-
 def slider_blit(slidr, sliderr):
     pygame.draw.rect(WIN, LIGHT_GREY, slidr, 0, 10)
     pygame.draw.rect(WIN, GREEN, sliderr, 0, 10)
@@ -303,6 +305,8 @@ def main():
     active_rect = None
     drop_active = False
     menu = True
+    global lines
+    lines = True
     speed = 1
     while run:
         clock.tick(60)
@@ -394,6 +398,15 @@ def main():
                 head = headfont.render('BACK', True, GREEN)
                 WIN.blit(head, (back[0] + back[2] // 2 - head.get_width() // 2, back[1] + head.get_height() // 2))
 
+            if lines:
+                pygame.draw.rect(WIN, GREEN, checkr, 0, 10)
+                head = headfont.render('SHOW LINES', True, BLACK)
+                WIN.blit(head, (check[0] + check[2] // 2 - head.get_width() // 2, check[1] + head.get_height() // 2))
+            else:
+                pygame.draw.rect(WIN, LIGHT_GREY, checkr, 0, 10)
+                head = headfont.render('SHOW LINES', True, BLACK)
+                WIN.blit(head, (check[0] + check[2] // 2 - head.get_width() // 2, check[1] + head.get_height() // 2))
+
             sim(currentobj['mass'], currentobj['radius'], currentobj['colour'], currentobj['velocity'])
             slider_blit(slidr, sliderr)
             particle1.emit()
@@ -418,6 +431,8 @@ def main():
                         active_slide = True
                     elif backr.collidepoint(float(x), float(y)):
                         menu = True
+                    elif checkr.collidepoint(float(x), float(y)):
+                        lines = not lines
 
                 elif event.type == pygame.MOUSEBUTTONUP:
                     if active_slide == True:
