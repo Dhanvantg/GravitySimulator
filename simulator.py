@@ -50,7 +50,6 @@ back = (menu[0] + menu[2] // 6, HEIGHT - drop[3] - HEIGHT // 32, (menu[2] * 2) /
 backr = pygame.Rect(back[0], back[1], back[2], back[3])
 check = (menu[0] + menu[2] // 6, back[1] - drop[3] - HEIGHT // 32, (menu[2] * 2) // 3, HEIGHT // 16)
 checkr = pygame.Rect(check[0], check[1], check[2], check[3])
-
 slide = (menu[0] + menu[2] // 8, menu[1] + (menu[3] * 31) // 24, 6 * menu[2] // 8, menu[3] // 20)
 slidr = pygame.Rect(slide[0], slide[1], slide[2], slide[3])
 slider = (menu[0] + menu[2] // 8, menu[1] + (menu[3] * 31) // 24 - (menu[3] // 15 - slide[3]) // 2, menu[2] // 8,
@@ -304,10 +303,12 @@ def main():
     active_slide = False
     active_rect = None
     drop_active = False
+    active_planet = None
     menu = True
     global lines
     lines = True
     speed = 1
+    AU = 149.6e6 * 1000
     while run:
         clock.tick(60)
         WIN.fill((0, 0, 0))
@@ -394,6 +395,17 @@ def main():
                 slider = xpos, slider[1], slider[2], slider[3]
                 sliderr = pygame.Rect(slider[0], slider[1], slider[2], slider[3])
 
+            if drop_active:
+                if active_planet is None:
+                    lx, ly = WIDTH // 2, HEIGHT // 2
+                    dist = str(math.hypot(abs(x - WIDTH // 2)*AU/scale, abs(y - HEIGHT // 2)*AU/scale))
+                else:
+                    lx, ly = abs(body.x*scale/body.AU + WIDTH // 2), abs(body.y*scale/body.AU + HEIGHT // 2)
+                    dist = str(math.hypot(abs(x - WIDTH // 2)*AU/scale - abs(body.x), abs(y - HEIGHT // 2)*AU/scale - abs(body.y)))
+                pygame.draw.line(WIN, LIGHT_GREY, (lx, ly), (x, y))
+                head = headfont.render(dist, True, DARK_GREY)
+                WIN.blit(head, ((lx + x)//2, (ly + y)//2))
+
             if backr.collidepoint(float(x), float(y)):
                 head = headfont.render('BACK', True, GREEN)
                 WIN.blit(head, (back[0] + back[2] // 2 - head.get_width() // 2, back[1] + head.get_height() // 2))
@@ -426,14 +438,23 @@ def main():
                             if active_rect[1] == currentobj[active_rect[1]].lower():
                                 currentobj[active_rect[1]] = ''
                             currentobj[active_rect[1]] += event.unicode
-                elif event.type == pygame.MOUSEBUTTONDOWN:
+                elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if sliderr.collidepoint(float(x), float(y)):
                         active_slide = True
                     elif backr.collidepoint(float(x), float(y)):
                         menu = True
                     elif checkr.collidepoint(float(x), float(y)):
                         lines = not lines
-
+                elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
+                    for body in planets:
+                        if body.radius >= math.hypot(x - abs(body.x*scale/body.AU + WIDTH // 2), y - abs(body.y*scale/body.AU + HEIGHT // 2)):
+                            if active_planet != body:
+                                active_planet = body
+                            else:
+                                active_planet = None
+                            break
+                    else:
+                        active_planet = None
                 elif event.type == pygame.MOUSEBUTTONUP:
                     if active_slide == True:
                         active_slide = False
