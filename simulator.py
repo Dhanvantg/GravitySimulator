@@ -2,8 +2,12 @@ import pygame
 import math
 import sys
 import random
+import mysql.connector as sql
+import time
 pygame.init()
 
+con = sql.connect(host="localhost", user="root", passwd="admin", database="gravity")
+cur = con.cursor()
 WIN = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 pygame.display.set_caption("Planet Simulation")
 pygame.mouse.set_visible(False)
@@ -48,6 +52,8 @@ scal = (menu[0], menu[1] + (menu[3] * 7) // 6, menu[2], menu[3] // 4)
 scaler = pygame.Rect(scal[0], scal[1], scal[2], scal[3])
 back = (menu[0] + menu[2] // 6, HEIGHT - drop[3] - HEIGHT // 32, (menu[2] * 2) // 3, HEIGHT // 16)
 backr = pygame.Rect(back[0], back[1], back[2], back[3])
+save = (WIDTH // 64, HEIGHT - drop[3] - HEIGHT // 32, (menu[2] * 2) // 3, HEIGHT // 16)
+saver = pygame.Rect(save[0], save[1], save[2], save[3])
 check = (menu[0] + menu[2] // 6, back[1] - drop[3] - HEIGHT // 32, (menu[2] * 2) // 3, HEIGHT // 16)
 checkr = pygame.Rect(check[0], check[1], check[2], check[3])
 slide = (menu[0] + menu[2] // 8, menu[1] + (menu[3] * 31) // 24, 6 * menu[2] // 8, menu[3] // 20)
@@ -271,6 +277,10 @@ def sim(mas='MASS', rad='RADIUS', col='COLOUR', vel='VELOCITY'):
     head = headfont.render('BACK', True, BLACK)
     WIN.blit(head, (back[0] + back[2] // 2 - head.get_width() // 2, back[1] + head.get_height() // 2))
 
+    pygame.draw.rect(WIN, WHITE, saver, 0, 10)
+    head = headfont.render('SAVE', True, BLACK)
+    WIN.blit(head, (save[0] + save[2] // 2 - head.get_width() // 2, save[1] + head.get_height() // 2))
+
 def slider_blit(slidr, sliderr):
     pygame.draw.rect(WIN, LIGHT_GREY, slidr, 0, 10)
     pygame.draw.rect(WIN, GREEN, sliderr, 0, 10)
@@ -279,6 +289,7 @@ def slider_blit(slidr, sliderr):
 def main():
     global sliderr
     global slider
+    global start
     run = True
     clock = pygame.time.Clock()
 
@@ -300,11 +311,16 @@ def main():
     #planets = [sun, earth, mars, mercury, venus]
 
     planets = []
+    bl = []
+    l = []
+    dropped = []
     active_slide = False
     active_rect = None
     drop_active = False
     active_planet = None
+    first = True
     menu = True
+    load = False
     global lines
     lines = True
     speed = 1
@@ -346,10 +362,10 @@ def main():
                                  pos=(WIDTH // 2, (HEIGHT * 3) // 5),
                                  text_input="PLAY", font=get_font(100), base_color="#d7fcd4", hovering_color="#19ff9f")
 
-            OPTIONS_BUTTON = Button(image=pygame.transform.scale(pygame.image.load("assets/Play Rectn.png"),
+            LOAD_BUTTON = Button(image=pygame.transform.scale(pygame.image.load("assets/Play Rectn.png"),
                                                                  (WIDTH // 6, HEIGHT // 12)),
                                     pos=(WIDTH // 2, HEIGHT * 3 // 5 - HEIGHT // 6),
-                                    text_input="HELP", font=get_font(35), base_color="#d7fcd4",
+                                    text_input="LOAD", font=get_font(35), base_color="#d7fcd4",
                                     hovering_color="#19ff9f")
             QUIT_BUTTON = Button(image=pygame.transform.scale(pygame.image.load("assets/Play Rectn.png"),
                                                               (WIDTH // 6, HEIGHT // 12)),
@@ -359,7 +375,7 @@ def main():
             WIN.blit(MENU_EMBOSS, MENU_EMBOSS_RECT)
             WIN.blit(MENU_TEXT, MENU_RECT)
 
-            for button in [PLAY_BUTTON, OPTIONS_BUTTON, QUIT_BUTTON]:
+            for button in [PLAY_BUTTON, LOAD_BUTTON, QUIT_BUTTON]:
                 button.changeColor(MENU_MOUSE_POS)
                 button.update(WIN)
 
@@ -371,17 +387,86 @@ def main():
                     particle1.add_particles()
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if PLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
+                        menu = load = False
+                        cur.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_SCHEMA='gravity'")
+                        s = cur.fetchall()
+                        global n
+                        n = 0
+                        print(s)
+                        for i in s:
+                            l = int(i[0][1:])
+                            if l >= n:
+                                n = l+1
+                        cur.execute("create table S00"+str(n)+"(mass varchar(255), radius int, r int, g int, b int, velocity bigint, x int, y int, time int)")
+                        con.commit()
+                    if LOAD_BUTTON.checkForInput(MENU_MOUSE_POS):
+                        load = True
                         menu = False
-                    if OPTIONS_BUTTON.checkForInput(MENU_MOUSE_POS):
-                        pass
+
                     if QUIT_BUTTON.checkForInput(MENU_MOUSE_POS):
                         pygame.quit()
                         sys.exit()
             particle1.emit()
             pygame.draw.circle(WIN, pygame.Color('Red'), MENU_MOUSE_POS, 8)
             pygame.display.update()
+        elif load == True:
+            if first == True:
+                cur.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_SCHEMA='gravity'")
+                s = cur.fetchall()
+                for i in range(len(s)):
+                    bl.append(Button(image=pygame.transform.scale(pygame.image.load("assets/Play Rect.png"),
+                                                                      (WIDTH // 12, HEIGHT // 10)),
+                                         pos=(WIDTH * (i// 7 + 1) // 10, (HEIGHT * (i % 7+1)) // 8),
+                                         text_input=s[i][0], font=get_font(20), base_color="#d7fcd4",
+                                         hovering_color="#19ff9f"))
+                first = False
+            else:
+                MENU_MOUSE_POS = pygame.mouse.get_pos()
+                particle1.emit()
+                for button in bl:
+                    button.changeColor(MENU_MOUSE_POS)
+                    button.update(WIN)
+
+
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        run = False
+                    elif event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_ESCAPE:
+                            quit()
+                    elif event.type == PARTICLE_EVENT:
+                        particle1.add_particles()
+                    elif event.type == pygame.MOUSEBUTTONDOWN:
+                        for button in bl:
+                            if button.checkForInput(MENU_MOUSE_POS):
+                                simt = button.text_input
+                                n = int(simt[1:])
+                                cur.execute('select * from ' + simt)
+                                l = cur.fetchall()
+                                print(l)
+                                load = False
+                                first = True
+
+                pygame.display.update()
+
         else:
+            if first == True:
+                start = time.time()
+                first = False
+
             x, y = pygame.mouse.get_pos()
+
+            if len(bl) != 0 and len(l) != 0:
+                d = time.time() - start
+                l0 = l[0]
+                print(l0[0])
+                if d >= l0[8] - 20:
+                    # 0-Mass, 1-Radius, 2-R, 3-G, 4-B, 5-Velocity, 6-x, 7-y, 8-Time
+                    new_planet = Planet((l0[6] - WIDTH // 2) / scale * Planet.AU, (l0[7] - HEIGHT // 2) / scale * Planet.AU,
+                                        l0[1], tuple((l0[2], l0[3], l0[4])), l0[0])
+                    new_planet.y_vel = l0[5]
+                    planets.append(new_planet)
+                    l.pop(0)
 
             if active_slide == True:
                 x = x - slider[2] // 2
@@ -409,6 +494,10 @@ def main():
             if backr.collidepoint(float(x), float(y)):
                 head = headfont.render('BACK', True, GREEN)
                 WIN.blit(head, (back[0] + back[2] // 2 - head.get_width() // 2, back[1] + head.get_height() // 2))
+
+            if saver.collidepoint(float(x), float(y)):
+                head = headfont.render('SAVE', True, GREEN)
+                WIN.blit(head, (save[0] + save[2] // 2 - head.get_width() // 2, save[1] + head.get_height() // 2))
 
             if lines:
                 pygame.draw.rect(WIN, GREEN, checkr, 0, 10)
@@ -443,6 +532,13 @@ def main():
                         active_slide = True
                     elif backr.collidepoint(float(x), float(y)):
                         menu = True
+                    elif saver.collidepoint(float(x), float(y)):
+                        print(dropped)
+                        for i in dropped:
+                            print(i)
+                            cur.execute("insert into S00"+str(n)+" values ("+i[0]+", "+i[1]+", "+i[2]+", "+i[3]+", "+i[4]+", "+i[5]+", "+i[6]+")")
+                            con.commit()
+                        menu = True
                     elif checkr.collidepoint(float(x), float(y)):
                         lines = not lines
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
@@ -471,11 +567,16 @@ def main():
                                 currentobj[rect[1]] = rect[1].upper()
                     else:
                         active_rect = None
+
                         if drop_active:
                             drop_active = False
                             new_planet = Planet((x - WIDTH // 2) / scale * Planet.AU, (y - HEIGHT // 2) / scale * Planet.AU, int(currentobj['radius']), eval(currentobj['colour']), eval(currentobj['mass']))
                             new_planet.y_vel = eval(currentobj['velocity'])
                             planets.append(new_planet)
+                            dropped.append(tuple(( str(eval(currentobj['mass'])), str(currentobj['radius']), str(currentobj['colour']), str(currentobj['velocity']), str(x), str(y), str(int(time.time()-start)) )))
+                            #print("insert into S00"+str(n)+" values ("+str(eval(currentobj['mass']))+", "+str(currentobj['radius'])+", "+str(currentobj['colour'])+", "+str(currentobj['velocity'])+", "+str(x)+", "+str(y)+", "+str(int(time.time()-start))+")")
+
+                            con.commit()
                 elif event.type == PARTICLE_EVENT:
                     particle1.add_particles()
 
