@@ -140,7 +140,7 @@ class Planet:
         self.y = y
         self.radius = radius
         self.color = color
-        self.mass = mass
+        self.mass = int(mass) 
 
         self.orbit = []
         self.sun = False
