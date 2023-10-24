@@ -1,3 +1,4 @@
+
 import pygame
 import math
 import sys
@@ -14,7 +15,7 @@ pygame.mouse.set_visible(False)
 
 WIDTH, HEIGHT = WIN.get_size()
 
-#commonly used colours
+#10**30,275266601726, 15566 for circularorbit 
 WHITE = (255, 255, 255)
 LIGHTGREY = (192, 192, 192)
 DARKGREY = (128, 128, 128)
